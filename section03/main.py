@@ -11,7 +11,7 @@ from fastapi import (
     Response,
     status,
 )
-from models import Curso
+from models import Curso, cursos
 
 
 def fake_db():
@@ -30,11 +30,6 @@ app = FastAPI(
     description="Uma api para estudo do FastApi",
 )
 
-cursos = {
-    1: {"titulo": "programaçãom pra leigos", "aulas": 112, "horas": 58},
-    2: {"titulo": "programaçãom pra leigos 2", "aulas": 52, "horas": 30},
-}
-
 
 @app.get(
     "/cursos",
@@ -42,6 +37,7 @@ cursos = {
     description="Retorna todos os cursos ou uma lista vazia",
     summary="Retorna todos os cursos",
     response_model=List[Curso],
+    response_description="Cursos encontrados com sucesso",
 )
 async def get_cursos(db: Any = Depends(fake_db)):
     return cursos
@@ -73,18 +69,16 @@ async def get_curso(
 async def post_curso(curso: Curso, db: Any = Depends(fake_db)):
     # gambiara para quando não tem id
     next_id = len(cursos) + 1
-    cursos[next_id] = curso
-    # fazendo isso só pra resposta não ficar null
-    del curso.id
+    curso.id = next_id
+    cursos.insert(next_id, curso)
     return curso
 
 
 @app.put("/cursos/{curso_id}")
 async def put_curso(curso_id: int, curso: Curso, db: Any = Depends(fake_db)):
-    if curso_id in cursos:
-        cursos[curso_id] = curso
-        # fazendo isso só pra resposta não ficar null
-        del curso.id
+    if len(list(filter(lambda x: x.id == curso_id, cursos))) != 0:
+        curso.id = curso_id
+        cursos[curso_id - 1] = curso
         return curso
     else:
         raise HTTPException(
@@ -95,8 +89,8 @@ async def put_curso(curso_id: int, curso: Curso, db: Any = Depends(fake_db)):
 
 @app.delete("/cursos/{curso_id}")
 async def delete_curso(curso_id: int, db: Any = Depends(fake_db)):
-    if curso_id in cursos:
-        del cursos[curso_id]
+    if len(list(filter(lambda x: x.id == curso_id, cursos))) != 0:
+        del cursos[curso_id - 1]
         # bug no fast api não usar por enquanto
         # return JSONResponse(status_code=status.HTTP_204_NO_CONTENT)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
